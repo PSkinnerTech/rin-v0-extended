@@ -1,0 +1,24 @@
+{
+  "name": "v0",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "rin": "./src/index.js"
+  },
+  "keywords": ["cli", "assistant", "openai", "text-to-speech"],
+  "author": "",
+  "license": "ISC",
+  "description": "Rin CLI - Personal Assistant Prototype",
+  "dependencies": {
+    "@google-cloud/text-to-speech": "^5.1.0",
+    "axios": "^1.8.4",
+    "commander": "^13.1.0",
+    "dotenv": "^16.5.0",
+    "openai": "^4.93.0",
+    "sqlite3": "^5.1.7"
+  }
+}
