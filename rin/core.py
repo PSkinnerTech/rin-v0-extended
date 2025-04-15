@@ -56,8 +56,20 @@ class Assistant:
                         logger.info(f"Handled reminder query: {reminder_response}")
                         response = reminder_response
                     else:
-                        # If not handled locally, use the LLM
-                        response = await self.llm.generate_response(query)
+                        # Check if this is a search-related query
+                        search_response = await self.handle_search_command(query)
+                        if search_response:
+                            logger.info(f"Handled search query: {search_response}")
+                            response = search_response
+                        else:
+                            # Check if this is an email-related query
+                            email_response = await self.handle_email_command(query)
+                            if email_response:
+                                logger.info(f"Handled email query: {email_response}")
+                                response = email_response
+                            else:
+                                # If not handled locally, use the LLM
+                                response = await self.llm.generate_response(query)
                 
             await self.storage.save_interaction(query, response)
             
@@ -86,14 +98,60 @@ class Assistant:
             r"what time is it",
             r"current time",
             r"tell me the time",
+            r"what's the time",
+            r"what is the time",
         ]
         
         # Date-related queries
         date_patterns = [
             r"what day is it",
             r"what is the date",
+            r"what's the date",
             r"current date",
             r"today's date",
+            r"what day of the week is it",
+            r"what month is it",
+            r"what year is it",
+            r"tell me the date",
+            r"can you tell me what day it is",
+            r"what is it today",
+            r"what's today",
+            r"what day is today",
+            r"today is what day",
+            r"what is today's date",
+        ]
+        
+        # Tomorrow-related queries
+        tomorrow_patterns = [
+            r"what day is (?:it )?tomorrow",
+            r"what is tomorrow",
+            r"what's tomorrow",
+            r"what date is tomorrow",
+            r"what day will it be tomorrow",
+            r"tomorrow's date",
+        ]
+        
+        # Yesterday-related queries
+        yesterday_patterns = [
+            r"what day was (?:it )?yesterday",
+            r"what is yesterday",
+            r"what's yesterday",
+            r"what date was yesterday",
+            r"what day was it yesterday",
+            r"yesterday's date",
+        ]
+        
+        # Day of week queries
+        day_of_week_pattern = r"what day (?:is|will) (this|next) (monday|tuesday|wednesday|thursday|friday|saturday|sunday)"
+        
+        # Future date queries
+        future_date_pattern = r"what day (?:is|will be) (?:in) (\d+) (day|days|week|weeks|month|months)"
+        
+        # Combined date and time queries
+        combined_patterns = [
+            r"what (?:is|are) the (?:date|day) and time",
+            r"what time and (?:date|day) is it",
+            r"current date and time",
         ]
         
         # Check for time queries
@@ -107,6 +165,70 @@ class Assistant:
             if re.search(pattern, query_lower):
                 now = datetime.datetime.now()
                 return f"Today is {now.strftime('%A, %B %d, %Y')}."
+        
+        # Check for tomorrow queries
+        for pattern in tomorrow_patterns:
+            if re.search(pattern, query_lower):
+                tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
+                return f"Tomorrow will be {tomorrow.strftime('%A, %B %d, %Y')}."
+        
+        # Check for yesterday queries
+        for pattern in yesterday_patterns:
+            if re.search(pattern, query_lower):
+                yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+                return f"Yesterday was {yesterday.strftime('%A, %B %d, %Y')}."
+        
+        # Check for day of week queries
+        day_match = re.search(day_of_week_pattern, query_lower)
+        if day_match:
+            which_week = day_match.group(1).lower()  # "this" or "next"
+            day_name = day_match.group(2).lower()
+            
+            # Map day name to day number (0 = Monday, 6 = Sunday)
+            day_to_num = {
+                "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+                "friday": 4, "saturday": 5, "sunday": 6
+            }
+            target_day = day_to_num[day_name]
+            
+            # Get current date and day of week
+            now = datetime.datetime.now()
+            current_day = now.weekday()  # 0 = Monday, 6 = Sunday
+            
+            # Calculate days until target day
+            days_until = target_day - current_day
+            if days_until <= 0 and which_week == "next":
+                days_until += 7
+            elif days_until < 0 and which_week == "this":
+                days_until += 7
+            
+            target_date = now + datetime.timedelta(days=days_until)
+            return f"{which_week.capitalize()} {day_name.capitalize()} is {target_date.strftime('%B %d, %Y')}."
+        
+        # Check for future date queries
+        future_match = re.search(future_date_pattern, query_lower)
+        if future_match:
+            amount = int(future_match.group(1))
+            unit = future_match.group(2).lower()
+            
+            now = datetime.datetime.now()
+            future_date = now
+            
+            if unit in ["day", "days"]:
+                future_date = now + datetime.timedelta(days=amount)
+            elif unit in ["week", "weeks"]:
+                future_date = now + datetime.timedelta(days=amount * 7)
+            elif unit in ["month", "months"]:
+                # Approximate - months have different lengths
+                future_date = now + datetime.timedelta(days=amount * 30)
+            
+            return f"In {amount} {unit}, it will be {future_date.strftime('%A, %B %d, %Y')}."
+        
+        # Check for combined date and time queries
+        for pattern in combined_patterns:
+            if re.search(pattern, query_lower):
+                now = datetime.datetime.now()
+                return f"It's {now.strftime('%A, %B %d, %Y')}, and the current time is {now.strftime('%I:%M %p')}."
         
         # If no patterns match, return None to use the LLM
         return None
@@ -381,6 +503,110 @@ class Assistant:
                 return f"I couldn't find an active reminder matching '{identifier}'."
 
         return None  # Not a reminder command
+    
+    async def handle_search_command(self, query):
+        """Handle web search related commands using WebSearchManager"""
+        from rin.search import WebSearchManager
+        
+        # Check if this is a search query
+        search_patterns = [
+            r"search (?:for|about) (.+)",
+            r"look up (.+)",
+            r"find (?:information|info) (?:about|on) (.+)",
+            r"what is (.+)",
+            r"who is (.+)",
+            r"tell me about (.+)"
+        ]
+        
+        for pattern in search_patterns:
+            match = re.search(pattern, query.lower())
+            if match:
+                search_query = match.group(1).strip()
+                logger.info(f"Handling search query: '{search_query}'")
+                
+                # Perform the search and summarize
+                try:
+                    search_manager = WebSearchManager()
+                    result = await search_manager.search_and_summarize(search_query)
+                except Exception as e:
+                     logger.error(f"Failed to instantiate or use WebSearchManager: {e}", exc_info=True)
+                     return "Sorry, I'm having trouble with my search capability right now."
+
+                if "error" in result:
+                    return f"I couldn't search for that: {result['error']}"
+                
+                # Combine summary and maybe top links (optional)
+                response_text = result.get('summary', "I found some results, but couldn't summarize them.")
+                # Optionally add top links
+                # top_results = result.get('results', [])[:1] # Get top 1 result
+                # if top_results:
+                #    response_text += f"\n\nTop result: {top_results[0]['title']} ({top_results[0]['link']})"
+                
+                return response_text
+        
+        return None  # Not a search query
+    
+    async def handle_email_command(self, query):
+        """Parse and handle email-related commands using SQLite EmailDraftCreator"""
+        from rin.email_drafts import EmailDraftCreator
+        
+        # Check if this is an email draft request
+        email_patterns = [
+            r"(?:write|draft|compose) (?:an |a )?email (?:to|for) (.+?) (?:about|regarding|re:|on) (.+)",
+            r"help me (?:write|draft|compose) (?:an |a )?email (?:to|for) (.+?) (?:about|regarding|re:|on) (.+)",
+            r"create (?:an |a )?email (?:to|for) (.+?) (?:about|regarding|re:|on) (.+)"
+        ]
+        
+        for pattern in email_patterns:
+            match = re.search(pattern, query.lower())
+            if match:
+                recipient = match.group(1).strip()
+                topic = match.group(2).strip()
+                
+                # Extract tone if specified
+                tone = "professional"  # default
+                tone_match = re.search(r"in a (professional|formal|casual|friendly|informal) tone", query.lower())
+                if tone_match:
+                    tone = tone_match.group(1)
+                
+                # Create email draft using the EmailDraftCreator
+                try:
+                    draft_creator = EmailDraftCreator()
+                    draft = await draft_creator.create_draft(recipient, topic, query, tone)
+                except Exception as e:
+                    logger.error(f"Failed to instantiate or use EmailDraftCreator: {e}", exc_info=True)
+                    return "Sorry, I'm having trouble with my email drafting capability right now."
+
+                if "error" in draft or not draft:
+                    return f"I couldn't create an email draft: {draft.get('error', 'Unknown error')}"
+                
+                return f"I've drafted an email to {recipient} about {topic}. Here it is:\n\n{draft['content']}\n\n(Saved to database with ID: {draft['id']})"
+        
+        # List drafts (from database)
+        if re.search(r"(show|list|what) (?:are |my )?email drafts", query.lower()):
+            try:
+                draft_creator = EmailDraftCreator()
+                drafts = await draft_creator.get_drafts()
+            except Exception as e:
+                logger.error(f"Failed to get drafts: {e}", exc_info=True)
+                return "Sorry, I couldn't retrieve your email drafts right now."
+
+            if not drafts:
+                return "You don't have any email drafts saved in the database."
+            
+            response = "Here are your recent email drafts from the database:\n"
+            for i, draft in enumerate(drafts[:5]):  # Show at most 5
+                created_at_str = draft.get("created_at", "Unknown")
+                try:
+                    created_dt = datetime.datetime.fromisoformat(created_at_str)
+                    created_at_display = created_dt.strftime("%b %d %H:%M")
+                except:
+                    created_at_display = "??"
+                response += f"{i+1}. To: {draft['recipient']} - Subject: {draft['subject']} ({created_at_display}, ID: {draft['id']})\n"
+            
+            return response
+        
+        return None  # Not an email-related command
     
     def _format_duration(self, seconds):
         """Format a duration in seconds to a human-readable string"""

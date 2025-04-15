@@ -293,6 +293,112 @@ def cancel(reminder_id):
     except Exception as e:
         click.echo(f"Error: {str(e)}")
 
+# Email draft commands
+@cli.group()
+def email():
+    """Create and manage email drafts"""
+    pass
+
+@email.command()
+@click.option('--to', prompt='Recipient', help='Email recipient')
+@click.option('--subject', prompt='Subject', help='Email subject')
+@click.option('--tone', default='professional', help='Email tone (professional, friendly, formal, etc.)')
+@click.argument('content_prompt', required=True)
+def draft(to, subject, tone, content_prompt):
+    """Create an email draft from a prompt"""
+    try:
+        from rin.email_drafts import EmailDraftCreator
+        draft_creator = EmailDraftCreator()
+        draft = asyncio.run(draft_creator.create_draft(to, subject, content_prompt, tone))
+        
+        if "error" in draft or not draft:
+            click.echo(f"Error creating draft: {draft.get('error', 'Unknown error')}")
+            return
+        
+        click.echo(f"Created email draft (ID: {draft['id']}) stored in database.")
+        click.echo(f"To: {draft['recipient']}")
+        click.echo(f"Subject: {draft['subject']}")
+        click.echo(f"\n{draft['content']}")
+        click.echo(f"\nUse 'rin email show {draft['id']}' to view later.")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+@email.command(name="list")
+def list_drafts():
+    """List all email drafts from the database"""
+    try:
+        from rin.email_drafts import EmailDraftCreator
+        draft_creator = EmailDraftCreator()
+        drafts = asyncio.run(draft_creator.get_drafts())
+        
+        if not drafts:
+            click.echo("No email drafts found in the database.")
+            return
+        
+        click.echo("Email drafts (from database):")
+        for draft in drafts:
+            created_at_str = draft.get("created_at", "Unknown time")
+            try: # Format timestamp nicely
+                 created_dt = datetime.datetime.fromisoformat(created_at_str)
+                 created_at_display = created_dt.strftime("%Y-%m-%d %H:%M")
+            except:
+                 created_at_display = created_at_str
+                 
+            click.echo(f"ID: {draft['id']}")
+            click.echo(f"Created: {created_at_display}")
+            click.echo(f"To: {draft['recipient']}")
+            click.echo(f"Subject: {draft['subject']}")
+            click.echo(f"Tone: {draft.get('tone', 'professional')}")
+            click.echo("-" * 40)
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+@email.command()
+@click.argument('draft_id')
+def show(draft_id):
+    """Show an email draft by ID from the database"""
+    try:
+        from rin.email_drafts import EmailDraftCreator
+        draft_creator = EmailDraftCreator()
+        draft = asyncio.run(draft_creator.get_draft(draft_id))
+        
+        if not draft:
+            click.echo(f"Draft {draft_id} not found in database.")
+            return
+        
+        created_at_str = draft.get("created_at", "Unknown time")
+        try: # Format timestamp nicely
+             created_dt = datetime.datetime.fromisoformat(created_at_str)
+             created_at_display = created_dt.strftime("%Y-%m-%d %H:%M")
+        except:
+             created_at_display = created_at_str
+             
+        click.echo(f"Email Draft (ID: {draft['id']}) - From Database")
+        click.echo(f"Created: {created_at_display}")
+        click.echo(f"To: {draft['recipient']}")
+        click.echo(f"Subject: {draft['subject']}")
+        click.echo(f"Tone: {draft.get('tone', 'professional')}")
+        click.echo("\nContent:")
+        click.echo(draft['content'])
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
+@email.command()
+@click.argument('draft_id')
+def delete(draft_id):
+    """Delete an email draft by ID from the database"""
+    try:
+        from rin.email_drafts import EmailDraftCreator
+        draft_creator = EmailDraftCreator()
+        success = asyncio.run(draft_creator.delete_draft(draft_id))
+        
+        if success:
+            click.echo(f"Deleted draft {draft_id} from database.")
+        else:
+            click.echo(f"Failed to delete draft {draft_id}. Draft might not exist.")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
 def _play_with_system_command(audio_path):
     """Play audio using system commands if PyAudio fails"""
     try:
@@ -305,6 +411,54 @@ def _play_with_system_command(audio_path):
         logger.info(f"Played audio using system command: {audio_path}")
     except Exception as e:
         logger.error(f"Error playing audio with system command: {str(e)}")
+
+@cli.command()
+@click.argument('query')
+@click.option('--summary/--no-summary', default=True, help="Summarize results with LLM")
+@click.option('--num-results', type=int, default=3, help="Number of results to fetch/summarize")
+def search(query, summary, num_results):
+    """Search the web for information using the configured provider"""
+    try:
+        from rin.search import WebSearchManager
+        search_manager = WebSearchManager()
+        
+        if summary:
+            result = asyncio.run(search_manager.search_and_summarize(query, num_results=num_results))
+            
+            if "error" in result:
+                click.echo(f"Error: {result['error']}")
+                return
+            
+            click.echo(f"Search results for: {query}\n")
+            click.echo("Summary:")
+            click.echo(result.get("summary", "No summary generated."))
+            
+            if result.get("results"):
+                click.echo("\nSources:")
+                for i, res in enumerate(result["results"]):
+                    click.echo(f"{i+1}. {res['title']}")
+                    click.echo(f"   {res['link']}")
+        else:
+            # Raw results without summary
+            result = asyncio.run(search_manager.raw_search(query, num_results=num_results))
+            
+            if "error" in result:
+                click.echo(f"Error: {result['error']}")
+                return
+                
+            results_list = result.get("results", [])
+            if results_list:
+                click.echo(f"Search results for: {query}\n")
+                for i, res in enumerate(results_list):
+                    click.echo(f"{i+1}. {res.get('title', 'No title')}")
+                    click.echo(f"   {res.get('link', '#')}")
+                    click.echo(f"   {res.get('snippet', 'No description.')}")
+                    click.echo("")
+            else:
+                click.echo("No results found.")
+                
+    except Exception as e:
+        click.echo(f"CLI Error: {str(e)}")
 
 if __name__ == '__main__':
     cli()

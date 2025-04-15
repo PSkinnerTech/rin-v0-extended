@@ -19,10 +19,13 @@ AUDIO_DIR.mkdir(exist_ok=True)
 # API keys and credentials
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CLOUD_CREDENTIALS")
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 # Engine options
 TTS_ENGINE = os.getenv("TTS_ENGINE", "google")
 STT_ENGINE = os.getenv("STT_ENGINE", "whisper")
+SEARCH_PROVIDER = os.getenv("SEARCH_PROVIDER", "serpapi")
 
 # Application settings
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
