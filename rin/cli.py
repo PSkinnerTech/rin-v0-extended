@@ -460,5 +460,22 @@ def search(query, summary, num_results):
     except Exception as e:
         click.echo(f"CLI Error: {str(e)}")
 
+@cli.command()
+def telegram():
+    """Start the Telegram bot"""
+    try:
+        from rin.telegram_bot import RinTelegramBot
+        
+        click.echo("Starting Telegram bot...")
+        click.echo("Press Ctrl+C to stop")
+        bot = RinTelegramBot()
+        
+        # Run the bot until terminated
+        asyncio.run(bot.start())
+    except KeyboardInterrupt:
+        click.echo("\nStopping Telegram bot...")
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+
 if __name__ == '__main__':
     cli()
