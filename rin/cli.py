@@ -1,6 +1,8 @@
 import click
 import asyncio
 import logging
+import sys
+import subprocess
 from rin.core import Assistant
 from rin.audio import AudioHandler
 from rin.logging_config import loggers
@@ -33,7 +35,12 @@ def listen(voice):
         click.echo(f"Rin: {result.get('text', '')}")
         
         if voice and result.get('audio_path'):
-            asyncio.run(AudioHandler.play_audio(result['audio_path']))
+            playback_success = asyncio.run(AudioHandler.play_audio(result['audio_path']))
+            
+            # If built-in playback fails, try using system commands
+            if not playback_success:
+                _play_with_system_command(result['audio_path'])
+                
     except Exception as e:
         click.echo(f"Error: {str(e)}")
 
@@ -54,9 +61,29 @@ def speak(text):
     try:
         path = asyncio.run(assistant.tts.synthesize(text))
         click.echo(f"Audio saved to {path}")
-        asyncio.run(AudioHandler.play_audio(path))
+        
+        # Try built-in playback first
+        playback_success = asyncio.run(AudioHandler.play_audio(path))
+        
+        # If built-in playback fails, try using system commands
+        if not playback_success:
+            _play_with_system_command(path)
+            
     except Exception as e:
         click.echo(f"Error: {str(e)}")
+
+def _play_with_system_command(audio_path):
+    """Play audio using system commands if PyAudio fails"""
+    try:
+        if sys.platform == "darwin":  # macOS
+            subprocess.run(["open", audio_path])
+        elif sys.platform == "win32":  # Windows
+            subprocess.run(["start", audio_path], shell=True)
+        elif sys.platform.startswith("linux"):  # Linux
+            subprocess.run(["xdg-open", audio_path])
+        logger.info(f"Played audio using system command: {audio_path}")
+    except Exception as e:
+        logger.error(f"Error playing audio with system command: {str(e)}")
 
 if __name__ == '__main__':
     cli()

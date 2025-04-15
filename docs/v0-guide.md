@@ -835,171 +835,91 @@ This enhanced step gives you a more future-proof, modular AI assistant with bett
 
 ## 🛠 Implementation Notes & Troubleshooting
 
-During implementation, you might encounter several common issues. Here are solutions for them:
+When implementing this guide, you'll likely encounter these common challenges:
 
-### OpenAI API Updates
+### 1. FFmpeg Dependency for Whisper
 
-The OpenAI API has been updated since this guide was written. To use the current version:
+Whisper requires FFmpeg to be installed on your system:
 
-```python
-# rin/llm.py - Updated OpenAI client
-def __init__(self):
-    # Import here to avoid loading the module if not needed
-    from openai import OpenAI
-    self.client = OpenAI(api_key=OPENAI_API_KEY)
-    self.model = LLM_MODEL
-    logger.info(f"Initialized OpenAI client with model {self.model}")
+```bash
+# macOS
+brew install ffmpeg
 
-async def generate_response(self, query):
-    # ... existing code ...
-    response = await loop.run_in_executor(
-        None,
-        lambda: self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": query}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
-    )
-    # ... existing code ...
+# Ubuntu/Debian
+sudo apt-get update && sudo apt-get install ffmpeg
+
+# Windows (using Chocolatey)
+choco install ffmpeg
 ```
 
-### Audio Dependencies Issues
+### 2. STT Implementation
 
-Audio handling often presents challenges due to system dependencies. For more robust implementation:
-
-```python
-# rin/audio.py - Graceful handling of missing dependencies
-# Try to import audio-related modules, but handle if they're missing
-AUDIO_RECORDING_AVAILABLE = False
-AUDIO_PLAYBACK_AVAILABLE = False
-
-try:
-    import sounddevice as sd
-    import numpy as np
-    import wave
-    AUDIO_RECORDING_AVAILABLE = True
-except ImportError as e:
-    logger.warning(f"Audio recording modules not available: {str(e)}")
-    logger.warning("Audio recording will be simulated")
-
-try:
-    from pydub import AudioSegment
-    from pydub.playback import play
-    AUDIO_PLAYBACK_AVAILABLE = True
-except ImportError as e:
-    logger.warning(f"Audio playback modules not available: {str(e)}")
-    logger.warning("Audio playback will be simulated")
-
-# Then in the AudioHandler methods, add fallbacks:
-@staticmethod
-async def record_audio(duration=5, sample_rate=16000):
-    if not AUDIO_RECORDING_AVAILABLE:
-        # Create a dummy file as a fallback
-        # ... implementation details ...
-    # ... continue with normal implementation ...
-```
-
-If audio playback doesn't work, you can use your system's default audio player by modifying the CLI:
+Whisper can be challenging to install. Add a fallback dummy STT implementation:
 
 ```python
-# rin/cli.py - Alternative audio playback
-@cli.command()
-@click.argument('text')
-def speak(text):
-    """Convert text to speech"""
-    try:
-        path = asyncio.run(assistant.tts.synthesize(text))
-        click.echo(f"Audio saved to {path}")
-        
-        # Try to play with the built-in audio player first
-        playback_result = asyncio.run(AudioHandler.play_audio(path))
-        
-        # If built-in playback fails or isn't available, use system player
-        if not playback_result and sys.platform == "darwin":  # macOS
-            subprocess.run(["open", path])
-        elif not playback_result and sys.platform == "win32":  # Windows
-            subprocess.run(["start", path], shell=True)
-        elif not playback_result and sys.platform.startswith("linux"):  # Linux
-            subprocess.run(["xdg-open", path])
-            
-    except Exception as e:
-        click.echo(f"Error: {str(e)}")
-```
-
-### Whisper Installation Challenges
-
-The Whisper package can be challenging to install on some systems. A robust approach:
-
-```python
-# rin/stt.py - Graceful handling of missing Whisper
-# Try to import whisper, but don't fail if it's not available
+# In rin/stt.py
 try:
     import whisper
     WHISPER_AVAILABLE = True
 except ImportError:
-    logger.warning("Whisper package not found. Speech-to-text functionality will be limited.")
+    logger.warning("Whisper not available")
     WHISPER_AVAILABLE = False
 
-# Add a dummy STT implementation for testing/fallback:
 class DummySTT(STTInterface):
-    """Dummy STT implementation for testing without actual speech recognition"""
-    
-    def __init__(self):
-        logger.info("Initializing Dummy STT (no actual speech recognition)")
-    
-    async def transcribe_audio(self, audio_file):
-        """Return dummy text instead of actual transcription"""
-        logger.info(f"Dummy transcription for file: {audio_file}")
-        return "This is dummy transcription text for testing purposes."
-    
+    """Fallback STT for testing"""
     async def transcribe_from_mic(self, duration=5):
-        """Simulate recording and return dummy text"""
-        # ... implementation ...
+        # Record audio but return dummy text
+        await AudioHandler.record_audio(duration)
+        return "This is dummy transcription text."
 ```
 
-### Configuration Defaults
+### 3. Audio Playback Issues
 
-For better out-of-the-box experience, set conservative defaults:
+Audio playback dependencies can be tricky. Add system command fallbacks:
 
 ```python
-# rin/config.py - Updated default settings
-# Engine options - Use fallback engines by default
-TTS_ENGINE = os.getenv("TTS_ENGINE", "google") 
-STT_ENGINE = os.getenv("STT_ENGINE", "dummy")  # Default to dummy instead of whisper
+# In rin/cli.py
+if not playback_success:
+    # Use system commands as fallback
+    if sys.platform == "darwin":  # macOS
+        subprocess.run(["open", audio_path])
+    elif sys.platform == "win32":  # Windows
+        subprocess.run(["start", audio_path], shell=True)
+    elif sys.platform.startswith("linux"):  # Linux
+        subprocess.run(["xdg-open", audio_path])
 ```
 
-### Avoiding Event Loop Issues
+### 4. Handling Local Queries
 
-When working with asyncio and multiple components:
+For time-sensitive queries, handle them locally instead of using the LLM:
 
 ```python
-# Use get_running_loop() instead of get_event_loop()
-loop = asyncio.get_running_loop()
-
-# Avoid creating futures in __init__ methods:
-def __init__(self):
-    self._model = None  # Initialize but don't load yet
+# In rin/core.py
+def _handle_local_queries(self, query):
+    query_lower = query.lower()
     
-async def _ensure_model_loaded(self):
-    """Load the model if not already loaded"""
-    if self._model is None:
-        # Load model in current event loop
-        # ... implementation ...
+    # Check for time pattern
+    if re.search(r"what time is it|current time", query_lower):
+        now = datetime.datetime.now()
+        return f"The current time is {now.strftime('%I:%M %p')}."
+        
+    # If no pattern matches, return None to use the LLM
+    return None
 ```
 
-### Additional Tools
+### 5. Async Loop Issues
 
-For easier setup and testing, consider creating:
+Avoid creating futures in `__init__` methods - load models lazily on first use:
 
-1. A test script to verify the installation and component functionality
-2. Setup scripts for different platforms
-3. PyProject.toml for modern Python packaging
+```python
+async def _ensure_model_loaded(self):
+    if self._model is None:
+        loop = asyncio.get_running_loop()
+        self._model = await loop.run_in_executor(None, lambda: whisper.load_model(self._model_name))
+    return self._model
+```
 
-With these modifications, the system becomes more resilient, providing graceful fallbacks when components can't be fully initialized due to system limitations or missing dependencies.
+These modifications will make your implementation more robust across different environments.
 
 ---
 

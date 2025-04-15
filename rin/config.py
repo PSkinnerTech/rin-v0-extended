@@ -22,7 +22,7 @@ GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CLOUD_CREDENTIALS")
 
 # Engine options
 TTS_ENGINE = os.getenv("TTS_ENGINE", "google")
-STT_ENGINE = os.getenv("STT_ENGINE", "dummy")
+STT_ENGINE = os.getenv("STT_ENGINE", "whisper")
 
 # Application settings
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

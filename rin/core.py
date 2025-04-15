@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import datetime
+import re
 from rin.llm import LLMInterface
 from rin.tts import TTSInterface
 from rin.stt import STTInterface, WHISPER_AVAILABLE
@@ -33,7 +35,16 @@ class Assistant:
         """Process a text query and return response"""
         try:
             logger.info("Processing query: %s", query)
-            response = await self.llm.generate_response(query)
+            
+            # Check if this is a time-related query we can handle locally
+            local_response = self._handle_local_queries(query)
+            if local_response:
+                logger.info(f"Handled query locally: {local_response}")
+                response = local_response
+            else:
+                # If not handled locally, use the LLM
+                response = await self.llm.generate_response(query)
+                
             await self.storage.save_interaction(query, response)
             
             audio_path = None
@@ -50,6 +61,43 @@ class Assistant:
                 "error": str(e),
                 "text": "I encountered an error while processing your request."
             }
+    
+    def _handle_local_queries(self, query):
+        """Handle common queries locally without using the LLM"""
+        # Convert query to lowercase for easier matching
+        query_lower = query.lower()
+        
+        # Time-related queries
+        time_patterns = [
+            r"what(?:'s| is) the time",
+            r"what time is it",
+            r"current time",
+            r"tell me the time",
+        ]
+        
+        # Date-related queries
+        date_patterns = [
+            r"what(?:'s| is) the date",
+            r"what day is it",
+            r"what(?:'s| is) today(?:'s)? date",
+            r"current date",
+            r"today's date",
+        ]
+        
+        # Check for time queries
+        for pattern in time_patterns:
+            if re.search(pattern, query_lower):
+                now = datetime.datetime.now()
+                return f"The current time is {now.strftime('%I:%M %p')}."
+        
+        # Check for date queries
+        for pattern in date_patterns:
+            if re.search(pattern, query_lower):
+                now = datetime.datetime.now()
+                return f"Today is {now.strftime('%A, %B %d, %Y')}."
+        
+        # If no patterns match, return None to use the LLM
+        return None
     
     async def listen_and_respond(self):
         """Record from microphone, convert to text, and respond"""
