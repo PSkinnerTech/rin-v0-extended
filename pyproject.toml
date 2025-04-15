@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["rin"]
+
+[project]
+name = "rin-cli"
+version = "0.1.0"
+description = "Rin CLI - Personal Assistant Prototype"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+keywords = ["cli", "assistant", "openai", "text-to-speech", "speech-to-text"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "click",
+    "openai",
+    "python-dotenv",
+    "google-cloud-texttospeech",
+    "sounddevice",
+    "numpy",
+    "pydub",
+    "asyncio",
+    "aiohttp",
+    "sqlite-utils"
+]
+
+[project.scripts]
+rin = "rin.cli:cli" 

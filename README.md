@@ -1,61 +1,96 @@
 # Rin CLI - Personal Assistant Prototype
 
-A command-line AI assistant built with Node.js, OpenAI GPT-4, and Google Cloud Text-to-Speech.
+A voice-first AI assistant built with Python, featuring OpenAI GPT integration, Google Cloud Text-to-Speech, and Whisper speech recognition.
 
 ## Features
 
 - `ask`: Ask Rin questions and get AI-powered responses
+- `listen`: Listen for voice commands and respond with text and speech
 - `remember`: View past conversations with Rin
 - `speak`: Convert text to speech using Google's TTS API
+
+## Prerequisites
+
+- Python 3.9+
+- Google Cloud Project with Text-to-Speech API enabled
+- OpenAI API Key
 
 ## Installation
 
 1. Clone the repository:
    ```
-   git clone https://github.com/PSkinnerTech/rin-v0.git
-   cd rin-v0
+   git clone https://github.com/YourUsername/rin-cli.git
+   cd rin-cli
    ```
 
-2. Install dependencies:
+2. Create and activate a virtual environment:
    ```
-   pnpm install
-   ```
-
-3. Create a `.env` file with your API keys:
-   ```
-   OPENAI_API_KEY=your_openai_api_key
-   GOOGLE_CLOUD_CREDENTIALS=keys/rin-tts.json
-   GOOGLE_TTS_API_KEY=your_google_tts_api_key
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-4. Setup Google Cloud credentials by placing your service account JSON in `keys/rin-tts.json`
+3. Install dependencies:
+   ```
+   pip install -e .
+   ```
 
-5. Link the CLI for development:
+4. Create a `.env` file with your credentials:
    ```
-   npm link
+   OPENAI_API_KEY=your_openai_key
+   GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/google-credentials.json
+   TTS_ENGINE=google
+   STT_ENGINE=whisper
+   LOG_LEVEL=INFO
+   LLM_MODEL=gpt-4
+   WHISPER_MODEL=base
    ```
+
+5. Place your Google Cloud credentials JSON file at the path specified in your `.env` file.
 
 ## Usage
 
-```
+```bash
 # Ask Rin a question
-rin ask "What's the weather like today?"
+rin ask "What's the weather like in San Francisco?"
 
-# View conversation history
+# Listen for a voice command
+rin listen
+
+# Replay conversation history
 rin remember
 
-# Convert text to speech
-rin speak "Hello, my name is Rin"
+# Speak text aloud
+rin speak "Hello, I am Rin."
 ```
+
+## Architecture
+
+- **Modular Design:** Separate modules for LLM, TTS, STT, storage, and audio handling
+- **Asynchronous Support:** Non-blocking operations for better responsiveness
+- **Factory Pattern:** Easy engine swapping for different providers
+- **Local Storage:** SQLite database for conversation history
+- **Cross-platform:** Works on Linux, macOS, and Windows
 
 ## Dependencies
 
-- commander: CLI interface
+- click: Command line interface
 - openai: OpenAI API integration
-- @google-cloud/text-to-speech: Google TTS integration
-- sqlite3: Local storage for conversations
-- dotenv: Environment variable management
+- google-cloud-texttospeech: Google TTS integration
+- whisper: Speech-to-text capabilities
+- sounddevice & pydub: Audio handling
+- sqlite3: Local storage
+- asyncio: Asynchronous operations
+- python-dotenv: Environment variable management
+
+## Future Improvements
+
+- Enhance Whisper STT with streaming capabilities
+- Add wake word detection
+- Implement offline TTS alternatives
+- Create a GUI interface
+- Expand memory with context injection
+- Add unit and integration tests
 
 ## License
 
-ISC 
+MIT 

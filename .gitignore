@@ -1,6 +1,20 @@
 # Environment variables
 .env
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
 # Logs
 logs
 *.log
@@ -20,7 +34,8 @@ jspm_packages/
 output.mp3
 
 # Google Cloud credentials
-keys/rin-tts.json
+keys/
+*.json
 
 # Runtime data
 pids
