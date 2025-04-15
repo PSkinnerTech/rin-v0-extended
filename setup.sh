@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rin CLI - Setup Script
+# v0-extended - Setup Script
 
 # Text colors
 GREEN='\033[0;32m'
@@ -7,8 +7,8 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== Rin CLI Setup ===${NC}"
-echo "This script will set up the Rin CLI environment."
+echo -e "${GREEN}=== v0-extended Setup ===${NC}"
+echo "This script will set up the v0-extended environment."
 
 # Check Python version
 echo -e "\n${YELLOW}Checking Python version...${NC}"
@@ -49,13 +49,13 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Install package
-echo -e "\n${YELLOW}Installing Rin CLI...${NC}"
+echo -e "\n${YELLOW}Installing v0-extended...${NC}"
 pip install -e .
 if [[ $? -ne 0 ]]; then
     echo -e "${RED}Error: Failed to install package.${NC}"
     exit 1
 fi
-echo -e "${GREEN}Rin CLI installed successfully.${NC}"
+echo -e "${GREEN}v0-extended installed successfully.${NC}"
 
 # Create .env file if it doesn't exist
 echo -e "\n${YELLOW}Checking for .env file...${NC}"
@@ -87,4 +87,4 @@ fi
 echo -e "\n${GREEN}Setup completed!${NC}"
 echo -e "To activate the environment in the future, run: ${YELLOW}source venv/bin/activate${NC}"
 echo -e "To test your setup, run: ${YELLOW}python test_setup.py${NC}"
-echo -e "To use Rin CLI, run: ${YELLOW}rin ask \"Hello, Rin!\"${NC}" 
+echo -e "To use v0-extended, run: ${YELLOW}rin ask \"Hello!\"${NC}" 

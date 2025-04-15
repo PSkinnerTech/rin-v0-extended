@@ -1,6 +1,6 @@
 @echo off
-echo === Rin CLI Setup ===
-echo This script will set up the Rin CLI environment.
+echo === v0-extended Setup ===
+echo This script will set up the v0-extended environment.
 
 :: Check Python version
 echo.
@@ -45,13 +45,13 @@ if %ERRORLEVEL% NEQ 0 (
 
 :: Install package
 echo.
-echo Installing Rin CLI...
+echo Installing v0-extended...
 pip install -e .
 if %ERRORLEVEL% NEQ 0 (
     echo Error: Failed to install package.
     exit /b 1
 )
-echo Rin CLI installed successfully.
+echo v0-extended installed successfully.
 
 :: Create .env file if it doesn't exist
 echo.
@@ -88,7 +88,7 @@ echo.
 echo Setup completed!
 echo To activate the environment in the future, run: venv\Scripts\activate
 echo To test your setup, run: python test_setup.py
-echo To use Rin CLI, run: rin ask "Hello, Rin!"
+echo To use v0-extended, run: rin ask "Hello!"
 
 :: Keep the window open
 pause 

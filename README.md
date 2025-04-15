@@ -1,4 +1,4 @@
-# Rin CLI - Personal Assistant Prototype
+# v0-extended - Personal Assistant Prototype
 
 A voice-first AI assistant built with Python, featuring OpenAI GPT integration, Google Cloud Text-to-Speech, and Whisper speech recognition.
 
@@ -21,8 +21,8 @@ A voice-first AI assistant built with Python, featuring OpenAI GPT integration, 
 
 1. Clone the repository:
    ```
-   git clone https://github.com/YourUsername/rin-cli.git
-   cd rin-cli
+   git clone https://github.com/YourUsername/v0-extended.git
+   cd v0-extended
    ```
 
 2. Install FFmpeg (system dependency):

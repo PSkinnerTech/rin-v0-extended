@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 packages = ["rin"]
 
 [project]
-name = "rin-cli"
+name = "v0-extended"
 version = "0.1.0"
-description = "Rin CLI - Personal Assistant Prototype"
+description = "v0-extended - Personal Assistant Prototype"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
