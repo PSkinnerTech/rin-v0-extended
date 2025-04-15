@@ -36,11 +36,27 @@ class RinTelegramBot:
             application.add_handler(CommandHandler("help", self.help_command))
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
             
-            # Start the bot
+            # Start the bot - the proper way to run polling
             await application.initialize()
             await application.start()
-            await application.run_polling()
+            await application.updater.start_polling()
             
+            # Keep the bot running until a shutdown is requested
+            logger.info("Telegram bot is running. Press Ctrl+C to stop.")
+            
+            # Wait for a termination signal
+            stop_signal = asyncio.Future()
+            
+            try:
+                await stop_signal
+            except asyncio.CancelledError:
+                pass
+            finally:
+                # Shutdown properly
+                await application.updater.stop()
+                await application.stop()
+                await application.shutdown()
+                
             return True
         except Exception as e:
             logger.error(f"Error starting Telegram bot: {str(e)}")

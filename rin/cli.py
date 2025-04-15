@@ -465,13 +465,29 @@ def telegram():
     """Start the Telegram bot"""
     try:
         from rin.telegram_bot import RinTelegramBot
+        import signal
         
         click.echo("Starting Telegram bot...")
         click.echo("Press Ctrl+C to stop")
         bot = RinTelegramBot()
         
-        # Run the bot until terminated
-        asyncio.run(bot.start())
+        # Use a new event loop for the bot
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Handle signals to gracefully shut down
+        def signal_handler():
+            loop.stop()
+        
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, signal_handler)
+        
+        try:
+            # Run the bot until stopped
+            loop.run_until_complete(bot.start())
+        finally:
+            loop.close()
+            
     except KeyboardInterrupt:
         click.echo("\nStopping Telegram bot...")
     except Exception as e:
